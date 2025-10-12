@@ -46,14 +46,16 @@ def normalize_landmarks(vec_xy):
     vec /= scale
     return vec.flatten()
 
-def draw_hud(frame, counts_by_label, tip="0: piedra | 1: papel | 2: tijeras | n: toggle norm | s: guardar | ESC: salir", norm_on=True):
+def draw_hud(frame, counts_by_label, tip="0: piedra | 1: papel | 2: tijeras | n: toggle norm | s: guardar | d: eliminar ultima | ESC: salir", norm_on=True):
     h, w = frame.shape[:2]
-    # Caja HUD
-    cv2.rectangle(frame, (10, 10), (w-10, 110), (0, 0, 0), -1)
-    cv2.putText(frame, tip, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1, cv2.LINE_AA)
+    # Caja HUD (aumentamos la altura para mostrar más información)
+    cv2.rectangle(frame, (10, 10), (w-10, 130), (0, 0, 0), -1)
+    cv2.putText(frame, tip, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
     cv2.putText(frame, f"Normalizacion: {'ON' if norm_on else 'OFF'}", (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,255), 1, cv2.LINE_AA)
     info = " | ".join([f"{LABEL_NAMES[i]}: {counts_by_label[i]}" for i in [0,1,2]])
     cv2.putText(frame, info, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 1, cv2.LINE_AA)
+    total = sum(counts_by_label.values())
+    cv2.putText(frame, f"Total sesion: {total}", (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 1, cv2.LINE_AA)
 
 def load_existing_dataset():
     """Carga dataset previo si existe, sino devuelve vacíos con shapes correctas."""
@@ -93,6 +95,7 @@ def main():
     data = []   # lista de vectores (42,)
     labels = [] # lista de ints {0,1,2}
     counts = defaultdict(int)
+    last_captured = None  # Para recordar la última captura (etiqueta)
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -144,6 +147,18 @@ def main():
             if key in (ord('n'), ord('N')):
                 USE_NORMALIZATION = not USE_NORMALIZATION
 
+            # Eliminar última imagen capturada
+            if key in (ord('d'), ord('D')):
+                if len(data) > 0:
+                    # Eliminar la última muestra
+                    removed_vec = data.pop()
+                    removed_label = labels.pop()
+                    counts[removed_label] -= 1
+                    last_captured = removed_label
+                    print(f"[ELIMINADO] Última muestra de '{LABEL_NAMES[removed_label]}' eliminada | nuevo total: {counts[removed_label]}")
+                else:
+                    print("[INFO] No hay muestras para eliminar en esta sesión.")
+
             # Guardar muestra del frame actual con etiqueta
             if key in LABELS:
                 if results.multi_hand_landmarks:
@@ -156,6 +171,7 @@ def main():
                         data.append(vec)
                         labels.append(y)
                         counts[y] += 1
+                        last_captured = y
                         print(f"[OK] Capturado gesto '{LABEL_NAMES[y]}' | total sesión: {counts[y]}")
                     else:
                         print("[WARN] Vector de landmarks con tamaño inesperado:", vec.shape)

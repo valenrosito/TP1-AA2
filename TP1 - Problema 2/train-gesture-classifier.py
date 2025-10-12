@@ -57,14 +57,14 @@ def train_model(data, labels):
     model = build_model()
 
     cbs = [
-        callbacks.EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True),
+        callbacks.EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True),
         callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=4, min_lr=1e-5),
         callbacks.ModelCheckpoint(MODEL_PATH, monitor='val_accuracy', save_best_only=True)
     ]
 
     model.fit(
         data, labels,
-        epochs=100,
+        epochs=200,
         batch_size=32,
         validation_split=0.2,
         callbacks=cbs,
